@@ -1,16 +1,14 @@
 package cn.ricecandy.napcat.dto.api.resp;
 
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
+@EqualsAndHashCode
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class GetRecordApiResp {
+public class GetRecordResp {
     String file;
     String url;
     String file_size;

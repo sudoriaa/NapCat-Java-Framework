@@ -1,10 +1,8 @@
 package cn.ricecandy.napcat.dto.api.resp;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
+@EqualsAndHashCode
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

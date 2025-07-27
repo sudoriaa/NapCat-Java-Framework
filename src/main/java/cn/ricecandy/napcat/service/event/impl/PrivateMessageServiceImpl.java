@@ -14,8 +14,7 @@ public class PrivateMessageServiceImpl implements PrivateMessageService {
 
 
     @Override
-    public Integer privateMessageEvent(PrivateMessageEvent event) {
-
+    public Integer onPrivateMessage(PrivateMessageEvent event) {
         if(event.getUser_id().equals("3078037152")){
             MessageApiReq req = MessageApiReq.builder()
                     .user_id(event.getUser_id())

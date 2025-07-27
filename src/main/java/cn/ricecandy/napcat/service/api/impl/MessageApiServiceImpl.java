@@ -1,13 +1,7 @@
 package cn.ricecandy.napcat.service.api.impl;
 
 import cn.ricecandy.napcat.dto.api.req.MessageApiReq;
-import cn.ricecandy.napcat.dto.api.resp.BaseNapcatResp;
-import cn.ricecandy.napcat.dto.api.resp.FetchEmojiLikeApiResp;
-import cn.ricecandy.napcat.dto.api.resp.GetImageApiResp;
-import cn.ricecandy.napcat.dto.api.resp.GetRecordApiResp;
-import cn.ricecandy.napcat.dto.event.message.GroupMessageEvent;
-import cn.ricecandy.napcat.dto.event.message.MessageEvent;
-import cn.ricecandy.napcat.dto.event.message.PrivateMessageEvent;
+import cn.ricecandy.napcat.dto.api.resp.*;
 import cn.ricecandy.napcat.service.api.MessageApiService;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
@@ -27,7 +21,6 @@ public class MessageApiServiceImpl implements MessageApiService {
     private WebClient webClient;
 
 
-
     @Override
     public Mono<String> sendGroupMsg(MessageApiReq messageApiReq) {
         return webClient.post()  // 关键：添加 return
@@ -37,9 +30,9 @@ public class MessageApiServiceImpl implements MessageApiService {
                 .bodyToMono(String.class)
                 .flatMap(jsonStr -> {
                     try {
-                        BaseNapcatResp<GroupMessageEvent> resp = JSON.parseObject(
+                        BaseNapcatResp<MessageResp> resp = JSON.parseObject(
                                 jsonStr,
-                                new TypeReference<BaseNapcatResp<GroupMessageEvent>>() {}
+                                new TypeReference<BaseNapcatResp<MessageResp>>() {}
                         );
                         if (resp.getStatus().equals("failed")) {
                             log.error("[↑发送群消息]发送失败:{}", resp.getMessage());
@@ -59,13 +52,55 @@ public class MessageApiServiceImpl implements MessageApiService {
 //    }
 
     @Override
-    public Mono<Void> sendGroupForwardMsg(MessageApiReq messageApiReq) {
-        return null;
+    public Mono<String> sendGroupForwardMsg(MessageApiReq messageApiReq) {
+        return webClient.post()
+                .uri("/send_group_forward_msg")
+                .bodyValue(messageApiReq)
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(
+                        jsonStr -> {
+                            try {
+                                BaseNapcatResp<MessageResp> resp = JSON.parseObject(
+                                        jsonStr,
+                                        new TypeReference<BaseNapcatResp<MessageResp>>() {}
+                                );
+                                if (resp.getStatus().equals("failed")) {
+                                    log.error("[↑发送群合并转发消息]发送失败:{}", resp.getMessage());
+                                    return Mono.just("-1");
+                                }
+                                log.info("[↑发送群合并转发消息]群聊:{} -> {}", messageApiReq.getGroup_id(), messageApiReq.getMessage());
+                                return Mono.just(resp.getData().getMessage_id());
+                            } catch (Exception e) {
+                                return Mono.error(new RuntimeException("JSON解析失败", e));
+                            }
+                        }
+                );
     }
 
     @Override
     public Mono<Void> forwardGroupSingleMsg(MessageApiReq messageApiReq) {
-        return null;
+        return webClient.post()  // 关键：添加 return
+                .uri("消息转发到群")
+                .bodyValue(messageApiReq)
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(jsonStr -> {
+                    try {
+                        BaseNapcatResp<Void> resp = JSON.parseObject(
+                                jsonStr,
+                                new TypeReference<BaseNapcatResp<Void>>() {}
+                        );
+                        if (resp.getStatus().equals("failed")) {
+                            log.error("[↑消息转发到群]发送失败:{}", resp.getMessage());
+                            return Mono.just("-1");
+                        }
+                        log.info("[↑消息转发到群]群聊:{} -> {}", messageApiReq.getGroup_id(), messageApiReq.getMessage());
+                        return Mono.empty();
+                    } catch (Exception e) {
+                        return Mono.error(new RuntimeException("JSON解析失败", e));
+                    }
+                }).then();
     }
 
     @Override
@@ -102,9 +137,9 @@ public class MessageApiServiceImpl implements MessageApiService {
                 .bodyToMono(String.class)
                 .flatMap(jsonStr -> {
                     try {
-                        BaseNapcatResp<PrivateMessageEvent> resp = JSON.parseObject(
+                        BaseNapcatResp<MessageResp> resp = JSON.parseObject(
                                 jsonStr,
-                                new TypeReference<BaseNapcatResp<PrivateMessageEvent>>() {}
+                                new TypeReference<BaseNapcatResp<MessageResp>>() {}
                         );
                         if (resp.getStatus().equals("failed")) {
                             log.error("[↑发送私聊消息]发送失败:{}", resp.getMessage());
@@ -168,10 +203,10 @@ public class MessageApiServiceImpl implements MessageApiService {
                                 new TypeReference<BaseNapcatResp<Void>>() {}
                         );
                         if (resp.getStatus().equals("failed")) {
-                            log.error("[↑撤回消息]撤回失败:{}", resp.getMessage());
+                            log.error("[撤回消息]撤回失败:{}", resp.getMessage());
                             return Mono.empty();
                         }
-                        log.info("[↑撤回消息] -> {}", messageApiReq.getMessage_id());
+                        log.info("[撤回消息] -> {}", messageApiReq.getMessage_id());
                         return Mono.empty();
                     } catch (Exception e) {
                         return Mono.error(new RuntimeException("JSON解析失败", e));
@@ -180,52 +215,254 @@ public class MessageApiServiceImpl implements MessageApiService {
     }
 
     @Override
-    public Mono<List<GroupMessageEvent>> getGroupMsgHistory(MessageApiReq messageApiReq) {
-        return null;
+    public Mono<List<MessageResp>> getGroupMsgHistory(MessageApiReq messageApiReq) {
+        return webClient.post()
+                .uri("/get_group_msg_history")
+                .bodyValue(messageApiReq)
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(jsonStr -> {
+                    try {
+                        BaseNapcatResp<JSONObject> resp = JSON.parseObject(
+                                jsonStr,
+                                new TypeReference<BaseNapcatResp<JSONObject>>() {}
+                        );
+                        if (resp.getStatus().equals("failed")) {
+                            log.error("[获取群历史消息]获取失败:{}", resp.getMessage());
+                            return Mono.empty();
+                        }
+                        log.info("[获取群历史消息] -> {}", resp.getData().getJSONArray("messages").toJSONString());
+                        List<MessageResp> res = JSON.parseObject(
+                                resp.getData().getJSONArray("messages").toString(),
+                                new TypeReference<List<MessageResp>>(){}
+                        );
+                        return Mono.just(res);
+                    } catch (Exception e) {
+                        return Mono.error(new RuntimeException("JSON解析失败", e));
+                    }
+                });
     }
 
     @Override
-    public Mono<GroupMessageEvent> getMsg(MessageApiReq messageApiReq) {
-        return null;
+    public Mono<MessageResp> getMsg(MessageApiReq messageApiReq) {
+        return webClient.post()
+                .uri("/get_msg")
+                .bodyValue(messageApiReq)
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(jsonStr -> {
+                    try {
+                        BaseNapcatResp<MessageResp> resp = JSON.parseObject(
+                                jsonStr,
+                                new TypeReference<BaseNapcatResp<MessageResp>>() {}
+                        );
+                        if (resp.getStatus().equals("failed")) {
+                            log.error("[获取消息详情]获取失败:{}", resp.getMessage());
+                            return Mono.empty();
+                        }
+                        log.info("[获取消息详情] -> {}",  JSONObject.toJSONString(resp.getData()));
+                        return Mono.just(resp.getData());
+                    } catch (Exception e) {
+                        return Mono.error(new RuntimeException("JSON解析失败", e));
+                    }
+                });
+    }
+
+
+    @Override
+    public Mono<List<MessageResp>> getForwardMsg(MessageApiReq messageApiReq) {
+        return webClient.post()
+                .uri("/get_forward_msg")
+                .bodyValue(messageApiReq)
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(jsonStr -> {
+                    try {
+                        BaseNapcatResp<JSONObject> resp = JSON.parseObject(
+                                jsonStr,
+                                new TypeReference<BaseNapcatResp<JSONObject>>() {}
+                        );
+                        if (resp.getStatus().equals("failed")) {
+                            log.error("[获取合并转发消息]获取失败:{}", resp.getMessage());
+                            return Mono.empty();
+                        }
+                        log.info("[获取合并转发消息] -> {}", resp.getData().getJSONArray("messages").toJSONString());
+
+
+                        List<MessageResp> res = JSON.parseObject(
+                                resp.getData().getJSONArray("messages").toString(),
+                                new TypeReference<List<MessageResp>>(){}
+                        );
+                        return Mono.just(res);
+                    } catch (Exception e) {
+                        return Mono.error(new RuntimeException("JSON解析失败", e));
+                    }
+                });
     }
 
     @Override
-    public Mono<GroupMessageEvent> getForwardMsg(MessageApiReq messageApiReq) {
-        return null;
+    public Mono<SendMsgEmojiLikeResp> sendMsgEmojiLike(MessageApiReq messageApiReq) {
+        return webClient.post()
+                .uri("/send_msg_emoji_like")
+                .bodyValue(messageApiReq)
+                .retrieve()
+                .bodyToMono(String.class)
+                .flatMap(jsonStr -> {
+                    try {
+                        BaseNapcatResp<SendMsgEmojiLikeResp> resp = JSON.parseObject(
+                                jsonStr,
+                                new TypeReference<BaseNapcatResp<SendMsgEmojiLikeResp>>() {
+                                }
+                        );
+                        if (resp.getStatus().equals("failed")) {
+                            log.error("[贴表情]发送失败: {}", resp.getMessage());
+                            return Mono.empty();
+                        }
+                        log.info("[贴表情] -> message_id:{}", messageApiReq.getMessage_id());
+                        return Mono.just(resp.getData());
+                    } catch (Exception e) {
+                        return Mono.error(new RuntimeException("JSON解析失败", e));
+                    }
+                });
     }
 
-    @Override
-    public Mono<Integer> sendMsgEmojiLike(MessageApiReq messageApiReq) {
-        return null;
-    }
+@Override
+public Mono<List<MessageResp>> getFriendMsgHistory(MessageApiReq messageApiReq) {
+    return webClient.post()
+            .uri("/get_friend_msg_history")
+            .bodyValue(messageApiReq)
+            .retrieve()
+            .bodyToMono(String.class)
+            .flatMap(jsonStr -> {
+                try {
+                    BaseNapcatResp<JSONObject> resp = JSON.parseObject(
+                            jsonStr,
+                            new TypeReference<BaseNapcatResp<JSONObject>>() {}
+                    );
+                    if (resp.getStatus().equals("failed")) {
+                        log.error("[获取私聊历史消息]获取失败:{}", resp.getMessage());
+                        return Mono.empty();
+                    }
+                    log.info("[获取私聊历史消息] -> {}", resp.getData().getJSONArray("messages").toJSONString());
+                    List<MessageResp> res = JSON.parseObject(
+                            resp.getData().getJSONArray("messages").toString(),
+                            new TypeReference<List<MessageResp>>(){}
+                    );
+                    return Mono.just(res);
+                } catch (Exception e) {
+                    return Mono.error(new RuntimeException("JSON解析失败", e));
+                }
+            });
+}
 
-    @Override
-    public Mono<List<PrivateMessageEvent>> getFriendMsgHistory(MessageApiReq messageApiReq) {
-        return null;
-    }
+@Override
+public Mono<FetchEmojiLikeResp> fetchEmojiLike(MessageApiReq messageApiReq) {
+    return webClient.post()
+            .uri("/fetch_emoji_like")
+            .bodyValue(messageApiReq)
+            .retrieve()
+            .bodyToMono(String.class)
+            .flatMap(
+                    jsonStr -> {
+                        try {
+                            BaseNapcatResp<FetchEmojiLikeResp> resp = JSON.parseObject(
+                                    jsonStr,
+                                    new TypeReference<BaseNapcatResp<FetchEmojiLikeResp>>() {}
+                            );
+                            if (resp.getStatus().equals("failed")) {
+                                log.error("[获取贴表情详情]获取失败:{}", resp.getMessage());
+                                return Mono.empty();
+                            }
+                            log.info("[获取贴表情详情] -> {}", JSONObject.toJSONString(resp.getData()));
+                            return Mono.just(resp.getData());
+                        } catch (Exception e) {
+                            return Mono.error(new RuntimeException("JSON解析失败", e));
+                        }
+                    }
+            );
+}
 
-    @Override
-    public Mono<FetchEmojiLikeApiResp> fetchEmojiLike(MessageApiReq messageApiReq) {
-        return null;
-    }
+@Override
+public Mono<Void> sendForWardMsg(MessageApiReq messageApiReq) {
+    return null;
+}
 
-    @Override
-    public Mono<Void> sendForWardMsg(MessageApiReq messageApiReq) {
-        return null;
-    }
+@Override
+public Mono<GetRecordResp> getRecord(MessageApiReq messageApiReq) {
+    return webClient.post()
+            .uri("/get_record")
+            .bodyValue(messageApiReq)
+            .retrieve()
+            .bodyToMono(String.class)
+            .flatMap(
+                    jsonStr -> {
+                        try {
+                            BaseNapcatResp<GetRecordResp> resp = JSON.parseObject(
+                                    jsonStr,
+                                    new TypeReference<BaseNapcatResp<GetRecordResp>>() {}
+                            );
+                            if (resp.getStatus().equals("failed")) {
+                                log.error("[获取语音消息详情]获取失败:{}", resp.getMessage());
+                                return Mono.empty();
+                            }
+                            log.info("[获取语音消息详情] -> {}", JSONObject.toJSONString(resp.getData()));
+                            return Mono.just(resp.getData());
+                        } catch (Exception e) {
+                            return Mono.error(new RuntimeException("JSON解析失败", e));
+                        }
+                    }
+            );
+}
 
-    @Override
-    public Mono<GetRecordApiResp> getRecord(MessageApiReq messageApiReq) {
-        return null;
-    }
+@Override
+public Mono<GetImageResp> getImage(MessageApiReq messageApiReq) {
+    return webClient.post()
+            .uri("/get_image")
+            .bodyValue(messageApiReq)
+            .retrieve()
+            .bodyToMono(String.class)
+            .flatMap(
+                    jsonStr -> {
+                        try {
+                            BaseNapcatResp<GetImageResp> resp = JSON.parseObject(
+                                    jsonStr,
+                                    new TypeReference<BaseNapcatResp<GetImageResp>>() {}
+                            );
+                            if (resp.getStatus().equals("failed")) {
+                                log.error("[获取图片消息详情]获取失败:{}", resp.getMessage());
+                                return Mono.empty();
+                            }
+                            log.info("[获取图片消息详情] -> {}", JSONObject.toJSONString(resp.getData()));
+                            return Mono.just(resp.getData());
+                        } catch (Exception e) {
+                            return Mono.error(new RuntimeException("JSON解析失败", e));
+                        }
+                    }
+            );
+}
 
-    @Override
-    public Mono<GetImageApiResp> getImage(MessageApiReq messageApiReq) {
-        return null;
-    }
-
-    @Override
-    public Mono<String> sendGroupAiRecord(MessageApiReq messageApiReq) {
-        return null;
-    }
+@Override
+public Mono<String> sendGroupAiRecord(MessageApiReq messageApiReq) {
+    return webClient.post()  // 关键：添加 return
+            .uri("/send_group_ai_record")
+            .bodyValue(messageApiReq)
+            .retrieve()
+            .bodyToMono(String.class)
+            .flatMap(jsonStr -> {
+                try {
+                    BaseNapcatResp<MessageResp> resp = JSON.parseObject(
+                            jsonStr,
+                            new TypeReference<BaseNapcatResp<MessageResp>>() {}
+                    );
+                    if (resp.getStatus().equals("failed")) {
+                        log.error("[↑发送群AI语音]发送失败:{}", resp.getMessage());
+                        return Mono.just("-1");
+                    }
+                    log.info("[↑发送群AI语音]群聊:{} ->({}) {}", messageApiReq.getGroup_id(), messageApiReq.getCharacter(), messageApiReq.getText());
+                    return Mono.just(resp.getData().getMessage_id());
+                } catch (Exception e) {
+                    return Mono.error(new RuntimeException("JSON解析失败", e));
+                }
+            });
+}
 }

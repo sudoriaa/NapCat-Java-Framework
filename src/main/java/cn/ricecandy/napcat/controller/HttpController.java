@@ -6,6 +6,7 @@ import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -15,12 +16,11 @@ public class HttpController {
     @Resource
     private EventDispatcherService eventDispatcherService;
 
-
+    @Async
     @PostMapping("/sudoria")
-    public ResponseEntity<String> handleEvent(
+    public void handleEvent(
             @RequestHeader HttpHeaders headers,
             @RequestBody String body) {
             eventDispatcherService.dispatch(body);
-            return  ResponseEntity.ok(body);
     }
 }

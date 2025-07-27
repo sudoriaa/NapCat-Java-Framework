@@ -1,6 +1,6 @@
 package cn.ricecandy.napcat.dto.event.message;
 
-import cn.ricecandy.napcat.entity.sender.GroupSender;
+import cn.ricecandy.napcat.entity.sender.Sender;
 import lombok.*;
 
 
@@ -10,7 +10,6 @@ import lombok.*;
 @ToString(callSuper = true)
 @EqualsAndHashCode(callSuper = true)
 public class GroupMessageEvent extends MessageEvent {
-    private String sub_type; // 'normal' or 'anonymous' or 'notice'
     private String group_id; // 群号
-    private GroupSender sender;
+    private Sender sender;
 }

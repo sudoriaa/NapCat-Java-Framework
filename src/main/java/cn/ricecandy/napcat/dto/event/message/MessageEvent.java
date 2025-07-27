@@ -22,4 +22,6 @@ public class MessageEvent extends OneBotEvent {
     private List<Segment> message;
     private String raw_message;
     private Integer font;
+    private String sub_type; // 'normal' or 'anonymous' or 'notice' or 'friend' or 'group'
+
 }
